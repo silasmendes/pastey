@@ -24,9 +24,23 @@ class ClipboardDB:
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     content TEXT NOT NULL,
                     is_pinned BOOLEAN DEFAULT 0,
+                    is_sensitive BOOLEAN DEFAULT 0,
+                    alias TEXT DEFAULT NULL,
                     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             """)
+            
+            # Add new columns to existing database if they don't exist
+            try:
+                cursor.execute("ALTER TABLE clipboard_items ADD COLUMN is_sensitive BOOLEAN DEFAULT 0")
+            except sqlite3.OperationalError:
+                pass  # Column already exists
+            
+            try:
+                cursor.execute("ALTER TABLE clipboard_items ADD COLUMN alias TEXT DEFAULT NULL")
+            except sqlite3.OperationalError:
+                pass  # Column already exists
+            
             conn.commit()
     
     def add_item(self, content: str) -> bool:
@@ -62,12 +76,12 @@ class ClipboardDB:
             result = cursor.fetchone()
             return result and result[0] == content
     
-    def get_all_items(self) -> List[Tuple[int, str, bool, str]]:
+    def get_all_items(self) -> List[Tuple[int, str, bool, bool, str, str]]:
         """Get all clipboard items, with pinned items first."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT id, content, is_pinned, timestamp 
+                SELECT id, content, is_pinned, is_sensitive, alias, timestamp 
                 FROM clipboard_items 
                 ORDER BY is_pinned DESC, timestamp DESC
             """)
@@ -82,6 +96,57 @@ class ClipboardDB:
                 SET is_pinned = NOT is_pinned 
                 WHERE id = ?
             """, (item_id,))
+            conn.commit()
+            return cursor.rowcount > 0
+    
+    def toggle_sensitive(self, item_id: int, alias: str = None) -> bool:
+        """Toggle the sensitive status of an item and set alias if provided."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            
+            # First get current sensitive status
+            cursor.execute("SELECT is_sensitive FROM clipboard_items WHERE id = ?", (item_id,))
+            result = cursor.fetchone()
+            if not result:
+                return False
+                
+            current_sensitive = result[0]
+            new_sensitive = not current_sensitive
+            
+            if new_sensitive and alias:
+                # Setting as sensitive with alias
+                cursor.execute("""
+                    UPDATE clipboard_items 
+                    SET is_sensitive = 1, alias = ?
+                    WHERE id = ?
+                """, (alias, item_id))
+            elif new_sensitive:
+                # Setting as sensitive without alias (use default)
+                cursor.execute("""
+                    UPDATE clipboard_items 
+                    SET is_sensitive = 1, alias = '*** Sensitive Data ***'
+                    WHERE id = ?
+                """, (item_id,))
+            else:
+                # Removing sensitive status
+                cursor.execute("""
+                    UPDATE clipboard_items 
+                    SET is_sensitive = 0, alias = NULL
+                    WHERE id = ?
+                """, (item_id,))
+            
+            conn.commit()
+            return cursor.rowcount > 0
+    
+    def update_alias(self, item_id: int, alias: str) -> bool:
+        """Update the alias for a sensitive item."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE clipboard_items 
+                SET alias = ?
+                WHERE id = ? AND is_sensitive = 1
+            """, (alias, item_id))
             conn.commit()
             return cursor.rowcount > 0
     

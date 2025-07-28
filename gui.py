@@ -4,7 +4,7 @@ Provides the main interface for viewing and managing clipboard history.
 """
 
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, simpledialog
 import pyautogui
 from typing import Callable, List, Tuple, Optional
 from database import ClipboardDB
@@ -74,7 +74,7 @@ class ClipboardGUI:
         
         # Instructions label
         instructions = ttk.Label(main_frame, 
-                                text="Double-click or press Enter to paste • Right-click to pin/unpin",
+                                text="Double-click or press Enter to paste • Right-click for options",
                                 foreground="gray")
         instructions.pack(pady=(0, 5))
         
@@ -82,17 +82,19 @@ class ClipboardGUI:
         tree_frame = ttk.Frame(main_frame)
         tree_frame.pack(fill=tk.BOTH, expand=True)
         
-        # Create treeview
-        columns = ("content", "pinned", "timestamp")
+        # Create treeview with additional column for sensitive data
+        columns = ("content", "pinned", "sensitive", "timestamp")
         self.tree = ttk.Treeview(tree_frame, columns=columns, show="headings", height=15)
         
         # Configure columns
         self.tree.heading("content", text="Content")
         self.tree.heading("pinned", text="Pinned")
+        self.tree.heading("sensitive", text="Sensitive")
         self.tree.heading("timestamp", text="Timestamp")
         
-        self.tree.column("content", width=350, minwidth=200)
+        self.tree.column("content", width=300, minwidth=200)
         self.tree.column("pinned", width=60, minwidth=50)
+        self.tree.column("sensitive", width=70, minwidth=60)
         self.tree.column("timestamp", width=150, minwidth=100)
         
         # Scrollbar
@@ -103,12 +105,8 @@ class ClipboardGUI:
         self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
-        # Context menu
+        # Context menu (will be populated dynamically)
         self.context_menu = tk.Menu(self.root, tearoff=0)
-        self.context_menu.add_command(label="Paste", command=self.paste_selected)
-        self.context_menu.add_separator()
-        self.context_menu.add_command(label="Toggle Pin", command=self.toggle_pin_selected)
-        self.context_menu.add_command(label="Delete", command=self.delete_selected)
     
     def _setup_bindings(self):
         """Setup event bindings."""
@@ -133,7 +131,43 @@ class ClipboardGUI:
         item = self.tree.identify_row(event.y)
         if item:
             self.tree.selection_set(item)
+            
+            # Update context menu based on item type
+            self._update_context_menu()
+            
             self.context_menu.post(event.x_root, event.y_root)
+    
+    def _update_context_menu(self):
+        """Update context menu options based on selected item."""
+        item_id = self.get_selected_item_id()
+        if not item_id:
+            return
+        
+        # Get item details
+        items = self.db.get_all_items()
+        current_item = next((item for item in items if item[0] == item_id), None)
+        if not current_item:
+            return
+        
+        is_sensitive = current_item[3]  # is_sensitive column
+        
+        # Clear the menu
+        self.context_menu.delete(0, tk.END)
+        
+        # Add basic options
+        self.context_menu.add_command(label="Paste", command=self.paste_selected)
+        self.context_menu.add_separator()
+        self.context_menu.add_command(label="Toggle Pin", command=self.toggle_pin_selected)
+        
+        # Add sensitive options
+        if is_sensitive:
+            self.context_menu.add_command(label="Remove Sensitive", command=self.toggle_sensitive_selected)
+            self.context_menu.add_command(label="Edit Alias", command=self.edit_alias_selected)
+        else:
+            self.context_menu.add_command(label="Mark as Sensitive", command=self.toggle_sensitive_selected)
+        
+        self.context_menu.add_separator()
+        self.context_menu.add_command(label="Delete", command=self.delete_selected)
     
     def show_window(self):
         """Show the clipboard manager window."""
@@ -173,25 +207,39 @@ class ClipboardGUI:
         items = self.db.get_all_items()
         
         # Add items to treeview
-        for item_id, content, is_pinned, timestamp in items:
-            # Truncate content for display
-            display_content = content.replace('\n', ' ').replace('\r', '')
-            if len(display_content) > 80:
-                display_content = display_content[:77] + "..."
+        for item_id, content, is_pinned, is_sensitive, alias, timestamp in items:
+            # Use alias for display if item is sensitive and has an alias
+            if is_sensitive and alias:
+                display_content = alias
+            else:
+                # Truncate content for display
+                display_content = content.replace('\n', ' ').replace('\r', '')
+                if len(display_content) > 80:
+                    display_content = display_content[:77] + "..."
             
             pinned_text = "📌" if is_pinned else ""
+            sensitive_text = "🔒" if is_sensitive else ""
             
             # Format timestamp
             formatted_time = timestamp.split('.')[0] if '.' in timestamp else timestamp
             
             # Insert item with ID as tag
             item_ref = self.tree.insert("", tk.END, 
-                                      values=(display_content, pinned_text, formatted_time),
+                                      values=(display_content, pinned_text, sensitive_text, formatted_time),
                                       tags=(str(item_id),))
             
-            # Highlight pinned items
-            if is_pinned:
+            # Apply special styling for sensitive items
+            if is_sensitive:
+                self.tree.set(item_ref, "content", f"🔒 {display_content}")
+                # Tag sensitive items for different coloring
+                self.tree.item(item_ref, tags=(str(item_id), "sensitive"))
+            elif is_pinned:
                 self.tree.set(item_ref, "content", f"📌 {display_content}")
+                self.tree.item(item_ref, tags=(str(item_id), "pinned"))
+        
+        # Configure tag colors
+        self.tree.tag_configure("sensitive", background="#ffe6e6")  # Light red background
+        self.tree.tag_configure("pinned", background="#e6f3ff")     # Light blue background
     
     def get_selected_item_id(self) -> Optional[int]:
         """Get the ID of the currently selected item."""
@@ -219,6 +267,61 @@ class ClipboardGUI:
         item_id = self.get_selected_item_id()
         if item_id and self.db.toggle_pin(item_id):
             self.refresh_list()
+    
+    def toggle_sensitive_selected(self):
+        """Toggle sensitive status of the selected item."""
+        item_id = self.get_selected_item_id()
+        if not item_id:
+            return
+        
+        # Check current sensitive status
+        items = self.db.get_all_items()
+        current_item = next((item for item in items if item[0] == item_id), None)
+        if not current_item:
+            return
+        
+        is_currently_sensitive = current_item[3]  # is_sensitive column
+        
+        if not is_currently_sensitive:
+            # Making item sensitive - ask for alias
+            alias = simpledialog.askstring(
+                "Sensitive Data Alias",
+                "Enter an alias for this sensitive data:",
+                initialvalue="*** Sensitive Data ***"
+            )
+            
+            if alias is not None:  # User didn't cancel
+                if self.db.toggle_sensitive(item_id, alias):
+                    self.refresh_list()
+        else:
+            # Removing sensitive status
+            if self.db.toggle_sensitive(item_id):
+                self.refresh_list()
+    
+    def edit_alias_selected(self):
+        """Edit the alias of a sensitive item."""
+        item_id = self.get_selected_item_id()
+        if not item_id:
+            return
+        
+        # Check if item is sensitive
+        items = self.db.get_all_items()
+        current_item = next((item for item in items if item[0] == item_id), None)
+        if not current_item or not current_item[3]:  # is_sensitive column
+            messagebox.showwarning("Not Sensitive", "This item is not marked as sensitive.")
+            return
+        
+        current_alias = current_item[4] or "*** Sensitive Data ***"  # alias column
+        
+        new_alias = simpledialog.askstring(
+            "Edit Alias",
+            "Enter new alias for this sensitive data:",
+            initialvalue=current_alias
+        )
+        
+        if new_alias is not None and new_alias.strip():  # User didn't cancel and provided text
+            if self.db.update_alias(item_id, new_alias.strip()):
+                self.refresh_list()
     
     def delete_selected(self):
         """Delete the selected item."""
