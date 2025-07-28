@@ -8,6 +8,7 @@ Features:
 - Global hotkey (Ctrl+Shift+Z) to open interface
 - Pin/unpin important items
 - Automatic paste functionality
+- Automatic database backup
 """
 
 import tkinter as tk
@@ -17,15 +18,24 @@ import threading
 import time
 import sys
 import queue
+import os
+from dotenv import load_dotenv
 from clipboard_monitor import ClipboardMonitor
 from database import ClipboardDB
 from gui import ClipboardGUI
+from backup_manager import create_backup_if_enabled
 
 
 class PasteyApp:
     def __init__(self):
         """Initialize the Pastey clipboard manager application."""
-        self.db = ClipboardDB()
+        # Load environment variables
+        load_dotenv()
+        
+        # Initialize database and create backup
+        self._setup_database_and_backup()
+        
+        # Initialize components
         self.clipboard_monitor = ClipboardMonitor(self.on_clipboard_change)
         self.gui = ClipboardGUI(self.db, self.on_paste_content)
         self.running = True
@@ -37,6 +47,38 @@ class PasteyApp:
         print("Pastey Clipboard Manager started!")
         print("Press Ctrl+Shift+Z to open clipboard history")
         print("Press Ctrl+Shift+Q to exit")
+    
+    def _setup_database_and_backup(self):
+        """Initialize database and create backup if configured."""
+        print("🔧 Initializing database...")
+        self.db = ClipboardDB()
+        
+        # Check if backup is enabled
+        backup_enabled = os.getenv('BACKUP_ENABLED', 'true').lower() == 'true'
+        
+        if backup_enabled:
+            print("💾 Creating database backup...")
+            backup_path = os.getenv('BACKUP_PATH', '')
+            max_backups = int(os.getenv('MAX_BACKUP_FILES', '10'))
+            
+            if backup_path:
+                try:
+                    success = create_backup_if_enabled(
+                        self.db.db_path, 
+                        backup_path, 
+                        max_backups
+                    )
+                    if success:
+                        print("✅ Database backup completed successfully!")
+                    else:
+                        print("⚠️  Database backup failed, continuing without backup...")
+                except Exception as e:
+                    print(f"⚠️  Backup error: {e}")
+                    print("Continuing without backup...")
+            else:
+                print("ℹ️  Backup disabled: BACKUP_PATH not configured in .env file")
+        else:
+            print("ℹ️  Backup disabled in configuration")
     
     def setup_hotkeys(self):
         """Setup global hotkeys for the application."""
