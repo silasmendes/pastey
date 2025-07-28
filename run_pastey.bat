@@ -4,8 +4,8 @@ echo.
 echo Make sure you have installed the requirements:
 echo   pip install -r requirements.txt
 echo.
-echo Press Ctrl+Shift+V to open clipboard history
-echo Press Ctrl+C to exit the application
+echo Press Ctrl+Shift+Z to open clipboard history
+echo Press Ctrl+Shift+Q to exit the application
 echo.
 
 cd /d "%~dp0"
