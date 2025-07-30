@@ -1,269 +1,43 @@
-# Pastey - Local Clipboard Manager
+# Pastey
 
-A Windows application that monitors and manages clipboard history with enhanced security features.
+A simple Windows clipboard manager that saves your clipboard history locally.
 
-## Features
+## What it does
 
-### Core Functionality
-- 📋 **Continuous clipboard monitoring** - Automatically captures all text copied to clipboard
-- 💾 **SQLite database storage** - Persistent history across sessions
-- ⚡ **Global hotkeys** - Quick access without switching windows
-- 📌 **Pin important items** - Keep frequently used content at the top
-- 🔄 **Smart duplicate prevention** - Avoids storing consecutive identical copies
-- 🧹 **Manual cleanup only** - All cleanup is user-controlled, nothing is deleted automatically
+- Monitors your clipboard and saves everything you copy
+- Shows your clipboard history in a simple window
+- Lets you click on old items to paste them again
+- Stores everything in a local SQLite database
 
-### Security Features 🔒
-- **Sensitive data hiding** - Mark passwords, API keys, and other sensitive content
-- **Custom aliases** - Replace sensitive content with meaningful labels
-- **Visual indicators** - Clear distinction between regular, pinned, and sensitive items
-- **Secure display** - Sensitive content only shows when pasted, not in the interface
+## How to use
 
-## Requirements
+1. Install dependencies:
 
-- Windows 10/11
-- Python 3.7+
-- Administrator privileges (recommended for global hotkeys)
-
-## Installation
-
-1. **Clone or download** this repository to your local machine
-
-2. **Create a virtual environment** (optional but recommended):
-   ```powershell
-   python -m venv venv
-   venv\Scripts\activate
-   ```
-
-3. **Install dependencies**:
-   ```powershell
+   ```bash
    pip install -r requirements.txt
    ```
 
-## Usage
+2. Run it:
 
-### Starting the Application
-
-Run the main application:
-```powershell
-python pastey.py
-```
-
-Or use the batch file:
-```powershell
-run_pastey.bat
-```
-
-**Important**: For global hotkeys to work properly, you may need to run the command prompt or PowerShell as Administrator.
-
-### Basic Operations
-
-1. **Copy text** anywhere in Windows - it will automatically be captured
-2. **Press `Ctrl+Shift+Z`** to open the clipboard history window
-3. **Select and paste**:
-   - Double-click any item to paste it
-   - Use arrow keys + Enter to select and paste
-   - Right-click for context menu options
-
-### Sensitive Data Management 🔒
-
-#### Marking Content as Sensitive
-1. Right-click on any clipboard item
-2. Select "Mark as Sensitive"
-3. Enter a meaningful alias (e.g., "Gmail Password", "API Key", "SSH Key")
-4. The original content is hidden and replaced with your alias
-
-#### Using Sensitive Content
-- **In the interface**: Only the alias is displayed (e.g., "🔒 Gmail Password")
-- **When pasting**: The actual sensitive content is pasted, not the alias
-- **Visual indicators**: Sensitive items have a red background and lock icon
-
-#### Managing Sensitive Content
-- **Edit alias**: Right-click → "Edit Alias"
-- **Remove sensitivity**: Right-click → "Remove Sensitive"
-- **Persistence**: Sensitive items and aliases are saved across app restarts
-
-### Interface Features
-
-#### Visual Indicators
-- **📌** - Pinned items (blue background)
-- **🔒** - Sensitive items (red background)
-- **Regular** - Normal clipboard content
-
-#### Available Actions
-- **📌 Pin Items**: Right-click → "Toggle Pin" or press Space to pin/unpin items
-- **🔒 Mark as Sensitive**: Right-click → "Mark as Sensitive" to hide sensitive content
-- **✏️ Edit Alias**: Right-click → "Edit Alias" to change sensitive content labels
-- **🗑️ Delete Items**: Select item → press Delete key or use context menu
-- **🧹 Clear Unpinned**: Button to remove all unpinned items at once
-- **🔄 Refresh**: Button to refresh the list (happens automatically)
-
-### Keyboard Shortcuts
-
-#### Global Shortcuts
-- `Ctrl+Shift+Z` - Open/close clipboard manager
-- `Ctrl+Shift+Q` - Exit application
-
-#### Within the Interface
-- `Enter` - Paste selected item
-- `Space` - Toggle pin/unpin selected item
-- `Delete` - Delete selected item
-- `Escape` - Close window
-- `↑/↓` - Navigate through items
-
-## File Structure
-
-```
-pastey/
-├── pastey.py              # Main application file
-├── database.py            # SQLite database operations
-├── clipboard_monitor.py   # Clipboard monitoring functionality
-├── gui.py                 # Tkinter GUI interface
-├── backup_manager.py      # Database backup functionality
-├── requirements.txt       # Python dependencies
-├── .env                   # Environment configuration (not in git)
-├── .env.example          # Example environment configuration
-├── clipboard_history.db   # SQLite database (created automatically)
-└── README.md             # This file
-```
-
-## Security & Privacy
-
-### Data Protection
-- 🔒 **100% Local**: No data is sent to the cloud or external servers
-- 💾 **Local Storage**: All clipboard history stored in local SQLite database
-- 🚫 **No Network Access**: Application works completely offline
-- 🧹 **Manual Control Only**: No automatic deletion - all data is preserved until you manually remove it
-- 🔐 **Sensitive Content Protection**: Original sensitive data is hidden in the interface
-- 📝 **Database Exclusion**: `.gitignore` prevents accidental sharing of clipboard history
-- 💾 **Automatic Backup**: Database is automatically backed up on startup (configurable)
-
-### Backup Configuration
-
-The application supports automatic database backups. To configure:
-
-1. **Copy the environment file**:
    ```bash
-   cp .env.example .env
+   python pastey.py
    ```
 
-2. **Edit the `.env` file** with your backup settings:
-   ```env
-   BACKUP_PATH=C:\Your\Backup\Directory
-   BACKUP_ENABLED=true
-   MAX_BACKUP_FILES=10
-   ```
+3. Press `Ctrl+Shift+Z` to open the clipboard history window
 
-3. **Backup behavior**:
-   - Backup is created every time the application starts
-   - Only the configured number of backups are kept (oldest are deleted)
-   - Backups are timestamped for easy identification
-   - No backup is created if `BACKUP_ENABLED=false` or if `BACKUP_PATH` is empty
+That's it. Copy stuff, press the hotkey, click on what you want to paste.
 
-### Best Practices for Sensitive Data
-1. **Mark sensitive content immediately** after copying passwords, API keys, etc.
-2. **Use descriptive aliases** like "Work Email Password" instead of generic names
-3. **Manual cleanup when needed** - Use "Clear Unpinned" to remove old content when you want to
-4. **Pin frequently used sensitive items** to keep them easily accessible
+## Files
 
-## Use Cases
+- `pastey.py` - Main application
+- `clipboard_monitor.py` - Watches clipboard for changes
+- `database.py` - SQLite database stuff
+- `gui.py` - The window interface
+- `backup_manager.py` - Backs up your clipboard database
+- `requirements.txt` - Python packages needed
 
-### For Developers
-```
-🔒 GitHub Token        (alias for: ghp_xxxxxxxxxxxxxxxxxxxx)
-🔒 Database Password   (alias for: MySecretDbPass123!)
-📌 Debug Commands      (pinned: console.log, breakpoints)
-```
+## Requirements
 
-### For System Administrators
-```
-🔒 Root Password       (alias for: complex-root-password)
-🔒 Service Account     (alias for: service-account-key)
-📌 Common Commands     (pinned: systemctl, docker commands)
-```
-
-### For General Users
-```
-🔒 Email Password      (alias for: personal email password)
-🔒 WiFi Password       (alias for: home/office WiFi password)
-📌 Addresses          (pinned: frequently used addresses)
-```
-
-## Troubleshooting
-
-### Global Hotkeys Not Working
-- Run PowerShell/Command Prompt as Administrator
-- Some antivirus software may block global hotkey registration
-
-### Application Won't Start
-- Ensure all dependencies are installed: `pip install -r requirements.txt`
-- Check that you're using Python 3.7 or later
-- Verify you're running on Windows
-
-### Clipboard Not Being Monitored
-- Make sure no other clipboard managers are running
-- Check that the application has permission to access clipboard
-- Try restarting the application
-
-### Performance Issues
-- The application is designed to be lightweight
-- All data is preserved - no automatic deletion occurs
-- For manual cleanup when needed, use "Clear Unpinned" button
-- If issues persist, you can manually delete `clipboard_history.db` to reset (you will lose all history)
-
-## Customization
-
-You can modify these settings in the code:
-
-- **Monitoring interval**: Adjust `time.sleep()` in `clipboard_monitor.py` (default: 0.5s)
-- **Window size**: Modify `geometry()` in `gui.py` (default: 600x400)
-- **Hotkeys**: Change hotkey combinations in `pastey.py`
-- **Backup settings**: Configure backup path and frequency in `.env` file
-
-## Dependencies
-
-- `pyperclip==1.9.0` - Clipboard access
-- `keyboard==0.13.5` - Global hotkeys
-- `pyautogui==0.9.54` - Automated pasting
-- `tkinter` - GUI framework (included with Python)
-- `sqlite3` - Database (included with Python)
-
-## Database Schema
-
-The application uses SQLite with the following structure:
-
-```sql
-CREATE TABLE clipboard_items (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    content TEXT NOT NULL,           -- Original clipboard content
-    is_pinned BOOLEAN DEFAULT 0,     -- Pinned status
-    is_sensitive BOOLEAN DEFAULT 0,  -- Sensitive data flag
-    alias TEXT DEFAULT NULL,         -- Display alias for sensitive content
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-## License
-
-This project is open source and available under the MIT License.
-
-## Version History
-
-### v2.0.0 - Sensitive Data Support
-- ✨ Added sensitive data hiding with custom aliases
-- ✨ Enhanced right-click context menu with dynamic options
-- ✨ Visual indicators for different content types (pinned, sensitive, regular)
-- ✨ Secure display of sensitive content (only visible when pasted)
-- 🔒 Improved security and privacy features
-- 🎯 Changed global hotkey to Ctrl+Shift+Z (less conflicts)
-
-### v1.0.0 - Initial Release
-- ✅ Basic clipboard monitoring
-- ✅ SQLite database storage
-- ✅ Pin/unpin functionality
-- ✅ Global hotkeys
-- ✅ Tkinter GUI interface
-- ✅ Clear unpinned items functionality
-
-## Contributing
-
-Feel free to submit issues, feature requests, or pull requests to improve Pastey!
+- Windows
+- Python 3.7+
+- Run as admin for global hotkeys to work properly
