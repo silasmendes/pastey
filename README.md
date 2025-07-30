@@ -8,6 +8,7 @@ A simple Windows clipboard manager that saves your clipboard history locally.
 - Shows your clipboard history in a simple window
 - Lets you click on old items to paste them again
 - Stores everything in a local SQLite database
+- Can hide sensitive data (passwords, keys) behind aliases
 
 ## How to use
 
@@ -26,6 +27,8 @@ A simple Windows clipboard manager that saves your clipboard history locally.
 3. Press `Ctrl+Shift+Z` to open the clipboard history window
 
 That's it. Copy stuff, press the hotkey, click on what you want to paste.
+
+**For sensitive data**: Right-click any item and "Mark as Sensitive" to hide it behind an alias.
 
 ## Files
 
