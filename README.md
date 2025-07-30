@@ -10,7 +10,7 @@ A Windows application that monitors and manages clipboard history with enhanced 
 - ⚡ **Global hotkeys** - Quick access without switching windows
 - 📌 **Pin important items** - Keep frequently used content at the top
 - 🔄 **Smart duplicate prevention** - Avoids storing consecutive identical copies
-- 🧹 **Automatic cleanup** - Maintains up to 100 recent items (pinned items never deleted)
+- 🧹 **Manual cleanup only** - All cleanup is user-controlled, nothing is deleted automatically
 
 ### Security Features 🔒
 - **Sensitive data hiding** - Mark passwords, API keys, and other sensitive content
@@ -118,7 +118,10 @@ pastey/
 ├── database.py            # SQLite database operations
 ├── clipboard_monitor.py   # Clipboard monitoring functionality
 ├── gui.py                 # Tkinter GUI interface
+├── backup_manager.py      # Database backup functionality
 ├── requirements.txt       # Python dependencies
+├── .env                   # Environment configuration (not in git)
+├── .env.example          # Example environment configuration
 ├── clipboard_history.db   # SQLite database (created automatically)
 └── README.md             # This file
 ```
@@ -129,15 +132,38 @@ pastey/
 - 🔒 **100% Local**: No data is sent to the cloud or external servers
 - 💾 **Local Storage**: All clipboard history stored in local SQLite database
 - 🚫 **No Network Access**: Application works completely offline
-- 🧹 **Automatic Cleanup**: Old items are automatically removed (except pinned items)
+- 🧹 **Manual Control Only**: No automatic deletion - all data is preserved until you manually remove it
 - 🔐 **Sensitive Content Protection**: Original sensitive data is hidden in the interface
 - 📝 **Database Exclusion**: `.gitignore` prevents accidental sharing of clipboard history
+- 💾 **Automatic Backup**: Database is automatically backed up on startup (configurable)
+
+### Backup Configuration
+
+The application supports automatic database backups. To configure:
+
+1. **Copy the environment file**:
+   ```bash
+   cp .env.example .env
+   ```
+
+2. **Edit the `.env` file** with your backup settings:
+   ```env
+   BACKUP_PATH=C:\Your\Backup\Directory
+   BACKUP_ENABLED=true
+   MAX_BACKUP_FILES=10
+   ```
+
+3. **Backup behavior**:
+   - Backup is created every time the application starts
+   - Only the configured number of backups are kept (oldest are deleted)
+   - Backups are timestamped for easy identification
+   - No backup is created if `BACKUP_ENABLED=false` or if `BACKUP_PATH` is empty
 
 ### Best Practices for Sensitive Data
 1. **Mark sensitive content immediately** after copying passwords, API keys, etc.
 2. **Use descriptive aliases** like "Work Email Password" instead of generic names
-3. **Regular cleanup** - Use "Clear Unpinned" to remove old content
-4. **Pin frequently used sensitive items** to keep them accessible
+3. **Manual cleanup when needed** - Use "Clear Unpinned" to remove old content when you want to
+4. **Pin frequently used sensitive items** to keep them easily accessible
 
 ## Use Cases
 
@@ -180,17 +206,18 @@ pastey/
 
 ### Performance Issues
 - The application is designed to be lightweight
-- Database automatically cleans up old items
-- If issues persist, delete `clipboard_history.db` to reset
+- All data is preserved - no automatic deletion occurs
+- For manual cleanup when needed, use "Clear Unpinned" button
+- If issues persist, you can manually delete `clipboard_history.db` to reset (you will lose all history)
 
 ## Customization
 
 You can modify these settings in the code:
 
-- **Maximum items**: Change `max_unpinned` parameter in `database.py` (default: 100)
 - **Monitoring interval**: Adjust `time.sleep()` in `clipboard_monitor.py` (default: 0.5s)
 - **Window size**: Modify `geometry()` in `gui.py` (default: 600x400)
 - **Hotkeys**: Change hotkey combinations in `pastey.py`
+- **Backup settings**: Configure backup path and frequency in `.env` file
 
 ## Dependencies
 

@@ -21,7 +21,7 @@ import queue
 import os
 from dotenv import load_dotenv
 from clipboard_monitor import ClipboardMonitor
-from database import ClipboardDB
+from database import ClipboardDB, BookmarksDB
 from gui import ClipboardGUI
 from backup_manager import create_backup_if_enabled
 

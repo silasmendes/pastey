@@ -1,13 +1,14 @@
 """
 GUI module for clipboard manager.
-Provides the main interface for viewing and managing clipboard history.
+Provides the main interface for viewing and managing clipboard history and bookmarks.
 """
 
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog
 import pyautogui
 from typing import Callable, List, Tuple, Optional
-from database import ClipboardDB
+from database import ClipboardDB, BookmarksDB
+from bookmarks_gui import BookmarksGUI
 
 
 class ClipboardGUI:
@@ -20,9 +21,12 @@ class ClipboardGUI:
             on_paste_callback: Function to call when pasting content
         """
         self.db = db
+        self.bookmarks_db = BookmarksDB(db.db_path)  # Use same database file
         self.on_paste_callback = on_paste_callback
         self.root: Optional[tk.Tk] = None
         self.tree: Optional[ttk.Treeview] = None
+        self.notebook: Optional[ttk.Notebook] = None
+        self.bookmarks_gui: Optional[BookmarksGUI] = None
         self.is_visible = False
         
     def create_window(self):
@@ -31,9 +35,12 @@ class ClipboardGUI:
             return
             
         self.root = tk.Tk()
-        self.root.title("Pastey - Clipboard Manager")
-        self.root.geometry("600x400")
+        self.root.title("Pastey - Clipboard Manager & Bookmarks")
+        self.root.geometry("700x500")
         self.root.resizable(True, True)
+        
+        # Configure window properties for better visibility
+        self.root.attributes('-alpha', 0.97)  # Slight transparency for modern look
         
         # Configure window to be hidden by default
         self.root.withdraw()
@@ -44,8 +51,20 @@ class ClipboardGUI:
         # Bind Escape key to close window
         self.root.bind("<Escape>", lambda e: self.hide_window())
         
+        # Bind Alt+Tab friendly behavior
+        self.root.bind("<FocusOut>", self._on_focus_out)
+        
         self._create_widgets()
         self._setup_bindings()
+        self.root.bind("<FocusOut>", self._on_focus_out)
+        
+        self._create_widgets()
+        self._setup_bindings()
+    
+    def _on_focus_out(self, event):
+        """Handle when window loses focus."""
+        # Don't hide the window when it loses focus unless explicitly hidden
+        pass
     
     def _create_widgets(self):
         """Create all GUI widgets."""
@@ -53,13 +72,35 @@ class ClipboardGUI:
         main_frame = ttk.Frame(self.root)
         main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
         
+        # Create notebook for tabs
+        self.notebook = ttk.Notebook(main_frame)
+        self.notebook.pack(fill=tk.BOTH, expand=True)
+        
+        # Create clipboard tab
+        clipboard_frame = ttk.Frame(self.notebook)
+        self.notebook.add(clipboard_frame, text="Clipboard History")
+        self._create_clipboard_widgets(clipboard_frame)
+        
+        # Create bookmarks tab
+        bookmarks_frame = ttk.Frame(self.notebook)
+        self.notebook.add(bookmarks_frame, text="URL Bookmarks")
+        
+        # Initialize bookmarks GUI
+        self.bookmarks_gui = BookmarksGUI(self.bookmarks_db)
+        self.bookmarks_gui.create_widgets(bookmarks_frame)
+        
+        # Set clipboard tab as default
+        self.notebook.select(clipboard_frame)
+    
+    def _create_clipboard_widgets(self, parent_frame):
+        """Create the clipboard tab widgets."""
         # Title label
-        title_label = ttk.Label(main_frame, text="Clipboard History", 
+        title_label = ttk.Label(parent_frame, text="Clipboard History", 
                                font=("Arial", 14, "bold"))
         title_label.pack(pady=(0, 10))
         
         # Button frame
-        button_frame = ttk.Frame(main_frame)
+        button_frame = ttk.Frame(parent_frame)
         button_frame.pack(fill=tk.X, pady=(0, 10))
         
         # Buttons
@@ -73,20 +114,27 @@ class ClipboardGUI:
                   command=self.delete_selected).pack(side=tk.LEFT, padx=(0, 5))
         
         # Instructions label
-        instructions = ttk.Label(main_frame, 
+        instructions = ttk.Label(parent_frame, 
                                 text="Double-click or press Enter to paste • Right-click for options",
                                 foreground="gray")
         instructions.pack(pady=(0, 5))
         
         # Treeview frame with scrollbar
-        tree_frame = ttk.Frame(main_frame)
+        tree_frame = ttk.Frame(parent_frame)
         tree_frame.pack(fill=tk.BOTH, expand=True)
         
+        # Style for Treeview
+        style = ttk.Style()
+        style.configure("Treeview", 
+                        rowheight=25,
+                        font=("Arial", 10))
+        style.map("Treeview",
+                  background=[('selected', '#cce5ff')],
+                  foreground=[('selected', 'black')])
+
         # Create treeview with additional column for sensitive data
         columns = ("content", "pinned", "sensitive", "timestamp")
-        self.tree = ttk.Treeview(tree_frame, columns=columns, show="headings", height=15)
-        
-        # Configure columns
+        self.tree = ttk.Treeview(tree_frame, columns=columns, show="headings", height=15, style="Treeview")
         self.tree.heading("content", text="Content")
         self.tree.heading("pinned", text="Pinned")
         self.tree.heading("sensitive", text="Sensitive")
@@ -170,23 +218,66 @@ class ClipboardGUI:
         self.context_menu.add_command(label="Delete", command=self.delete_selected)
     
     def show_window(self):
-        """Show the clipboard manager window."""
+        """Show the clipboard manager window and bring it to front."""
         if not self.root:
             self.create_window()
         
+        # Always show clipboard tab first (index 0)
+        if self.notebook:
+            self.notebook.select(0)
+        
         self.refresh_list()
-        self.root.deiconify()
-        self.root.lift()
-        self.root.focus_force()
+        
+        # Make sure window is visible and comes to front
+        self.root.deiconify()  # Show window if minimized
+        self.root.wm_state('normal')  # Ensure window is in normal state
+        self.root.lift()  # Bring window to top of stacking order
+        self.root.attributes('-topmost', True)  # Temporarily make it topmost
+        self.root.attributes('-topmost', False)  # Remove topmost so user can interact normally
+        self.root.focus_force()  # Force focus to this window
+        self.root.grab_set()  # Make this window modal temporarily
+        self.root.grab_release()  # Release modal state immediately
+        
+        # Ensure window is centered and visible on screen
+        self._center_window()
+        
         self.is_visible = True
         
         # Focus on the treeview
-        self.tree.focus_set()
+        if self.tree:
+            self.tree.focus_set()
+            
+            # Select the first item if available
+            items = self.tree.get_children()
+            if items:
+                self.tree.selection_set(items[0])
+    
+    def _center_window(self):
+        """Center the window on the screen."""
+        if not self.root:
+            return
+            
+        # Update window to get accurate dimensions
+        self.root.update_idletasks()
         
-        # Select the first item if available
-        items = self.tree.get_children()
-        if items:
-            self.tree.selection_set(items[0])
+        # Get screen dimensions
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
+        
+        # Get window dimensions
+        window_width = self.root.winfo_reqwidth()
+        window_height = self.root.winfo_reqheight()
+        
+        # Calculate position for center
+        pos_x = (screen_width // 2) - (window_width // 2)
+        pos_y = (screen_height // 2) - (window_height // 2)
+        
+        # Ensure window is not positioned off-screen
+        pos_x = max(0, pos_x)
+        pos_y = max(0, pos_y)
+        
+        # Set window position
+        self.root.geometry(f"+{pos_x}+{pos_y}")
     
     def hide_window(self):
         """Hide the clipboard manager window."""

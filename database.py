@@ -60,8 +60,6 @@ class ClipboardDB:
             """, (content, datetime.now()))
             conn.commit()
         
-        # Clean up old items (keep only 100 non-pinned items)
-        self.cleanup_old_items()
         return True
     
     def is_duplicate(self, content: str) -> bool:
@@ -209,3 +207,117 @@ class ClipboardDB:
             """, (item_id,))
             result = cursor.fetchone()
             return result[0] if result else None
+
+
+class BookmarksDB:
+    def __init__(self, db_path: str = "clipboard_history.db"):
+        """Initialize database connection and create bookmarks table if it doesn't exist."""
+        self.db_path = db_path
+        self.init_bookmarks_table()
+    
+    def init_bookmarks_table(self):
+        """Create the bookmarks table if it doesn't exist."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS bookmarks (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    title TEXT NOT NULL,
+                    description TEXT NOT NULL,
+                    url TEXT NOT NULL,
+                    category TEXT NOT NULL,
+                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            conn.commit()
+    
+    def add_bookmark(self, title: str, description: str, url: str, category: str) -> bool:
+        """Add a new bookmark to the database."""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    INSERT INTO bookmarks (title, description, url, category, timestamp)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (title, description, url, category, datetime.now()))
+                conn.commit()
+            return True
+        except Exception as e:
+            print(f"Error adding bookmark: {e}")
+            return False
+    
+    def get_all_bookmarks(self) -> List[Tuple[int, str, str, str, str, str]]:
+        """Get all bookmarks ordered by category and then by title."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT id, title, description, url, category, timestamp 
+                FROM bookmarks 
+                ORDER BY category, title
+            """)
+            return cursor.fetchall()
+    
+    def get_bookmarks_by_category(self, category: str) -> List[Tuple[int, str, str, str, str, str]]:
+        """Get bookmarks filtered by category."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT id, title, description, url, category, timestamp 
+                FROM bookmarks 
+                WHERE category = ?
+                ORDER BY title
+            """, (category,))
+            return cursor.fetchall()
+    
+    def get_categories(self) -> List[str]:
+        """Get all unique categories."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT DISTINCT category 
+                FROM bookmarks 
+                ORDER BY category
+            """)
+            return [row[0] for row in cursor.fetchall()]
+    
+    def update_bookmark(self, bookmark_id: int, title: str, description: str, url: str, category: str) -> bool:
+        """Update a bookmark."""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    UPDATE bookmarks 
+                    SET title = ?, description = ?, url = ?, category = ?
+                    WHERE id = ?
+                """, (title, description, url, category, bookmark_id))
+                conn.commit()
+                return cursor.rowcount > 0
+        except Exception as e:
+            print(f"Error updating bookmark: {e}")
+            return False
+    
+    def delete_bookmark(self, bookmark_id: int) -> bool:
+        """Delete a bookmark from the database."""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    DELETE FROM bookmarks 
+                    WHERE id = ?
+                """, (bookmark_id,))
+                conn.commit()
+                return cursor.rowcount > 0
+        except Exception as e:
+            print(f"Error deleting bookmark: {e}")
+            return False
+    
+    def get_bookmark(self, bookmark_id: int) -> Optional[Tuple[int, str, str, str, str, str]]:
+        """Get a specific bookmark by ID."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT id, title, description, url, category, timestamp 
+                FROM bookmarks 
+                WHERE id = ?
+            """, (bookmark_id,))
+            return cursor.fetchone()
